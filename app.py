@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import random
 from datetime import datetime
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, flash
@@ -57,6 +58,23 @@ class Stream(db.Model):
     
     def __repr__(self):
         return f'<Stream {self.resolution_label}: {self.url[:50]}...>'
+
+class ProxyServer(db.Model):
+    __tablename__ = 'proxy_servers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    proxy_type = db.Column(db.String(20), nullable=False)  # http, socks5, etc.
+    host = db.Column(db.String(255), nullable=False)
+    port = db.Column(db.Integer, nullable=False)
+    username = db.Column(db.String(100), nullable=True)
+    password = db.Column(db.String(100), nullable=True)
+    country_code = db.Column(db.String(2), nullable=True)  # US, UK, CA, etc.
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ProxyServer {self.name}: {self.host}:{self.port}>'
 
 # M3U Parser Class
 class M3UParser:
@@ -209,15 +227,64 @@ def check_all_channels_status():
     
     return jsonify({'channels': status_data})
 
+def get_proxy_for_stream(stream_url):
+    """Get a suitable proxy server for the stream"""
+    # Get active proxy servers
+    proxies = ProxyServer.query.filter_by(is_active=True).all()
+    
+    if not proxies:
+        return None
+    
+    # Simple round-robin selection (can be enhanced with geo-location logic)
+    # TODO: Add country-aware selection and health checks
+    return random.choice(proxies)
+
+def get_user_agents():
+    """Return a list of realistic user agents for geo-blocking bypass"""
+    return [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0'
+    ]
+
 @app.route('/proxy/<int:stream_id>')
 def proxy_stream(stream_id):
-    """Proxy endpoint for non-HLS streams"""
+    """Enhanced proxy endpoint for non-HLS streams with geo-blocking bypass"""
     stream = Stream.query.get_or_404(stream_id)
     
     try:
+        # Prepare headers for geo-blocking bypass
+        headers = {
+            'User-Agent': random.choice(get_user_agents()),
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        # Get proxy configuration
+        proxy_server = get_proxy_for_stream(stream.url)
+        proxies = None
+        
+        if proxy_server:
+            if proxy_server.username and proxy_server.password:
+                proxy_url = f"{proxy_server.proxy_type}://{proxy_server.username}:{proxy_server.password}@{proxy_server.host}:{proxy_server.port}"
+            else:
+                proxy_url = f"{proxy_server.proxy_type}://{proxy_server.host}:{proxy_server.port}"
+            
+            proxies = {
+                'http': proxy_url,
+                'https': proxy_url
+            }
+        
         # Stream the content
         def generate():
-            with requests.get(stream.url, stream=True, timeout=30) as r:
+            with requests.get(stream.url, stream=True, timeout=30, 
+                            headers=headers, proxies=proxies, 
+                            verify=True) as r:
                 r.raise_for_status()
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
@@ -234,7 +301,12 @@ def proxy_stream(stream_id):
         else:
             content_type = 'application/octet-stream'
         
-        return Response(generate(), content_type=content_type)
+        response = Response(generate(), content_type=content_type)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response
     
     except requests.RequestException as e:
         return f"Error proxying stream: {str(e)}", 500
@@ -395,6 +467,72 @@ def admin_delete_stream(stream_id):
     
     flash('Stream deleted successfully!', 'success')
     return redirect(url_for('admin_view_channel', channel_id=channel_id))
+
+@app.route('/admin/proxies')
+@require_admin
+def admin_proxies():
+    """Manage proxy servers"""
+    proxies = ProxyServer.query.order_by(ProxyServer.created_at.desc()).all()
+    return render_template('admin_proxies.html', proxies=proxies)
+
+@app.route('/admin/proxies/add', methods=['GET', 'POST'])
+@require_admin
+def admin_add_proxy():
+    """Add new proxy server"""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        proxy_type = request.form.get('proxy_type')
+        host = request.form.get('host')
+        port = request.form.get('port', type=int)
+        username = request.form.get('username')
+        password = request.form.get('password')
+        country_code = request.form.get('country_code')
+        
+        if not all([name, proxy_type, host, port]):
+            flash('Name, type, host, and port are required!', 'error')
+            return render_template('admin_add_proxy.html')
+        
+        proxy = ProxyServer(
+            name=name,
+            proxy_type=proxy_type,
+            host=host,
+            port=port,
+            username=username if username else None,
+            password=password if password else None,
+            country_code=country_code.upper() if country_code else None
+        )
+        db.session.add(proxy)
+        db.session.commit()
+        
+        flash(f'Proxy server "{name}" added successfully!', 'success')
+        return redirect(url_for('admin_proxies'))
+    
+    return render_template('admin_add_proxy.html')
+
+@app.route('/admin/proxies/<int:proxy_id>/toggle', methods=['POST'])
+@require_admin
+def admin_toggle_proxy(proxy_id):
+    """Toggle proxy server active status"""
+    proxy = ProxyServer.query.get_or_404(proxy_id)
+    proxy.is_active = not proxy.is_active
+    db.session.commit()
+    
+    status = 'activated' if proxy.is_active else 'deactivated'
+    flash(f'Proxy server "{proxy.name}" {status}!', 'success')
+    return redirect(url_for('admin_proxies'))
+
+@app.route('/admin/proxies/<int:proxy_id>/delete', methods=['POST'])
+@require_admin
+def admin_delete_proxy(proxy_id):
+    """Delete proxy server"""
+    proxy = ProxyServer.query.get_or_404(proxy_id)
+    proxy_name = proxy.name
+    
+    db.session.delete(proxy)
+    db.session.commit()
+    
+    flash(f'Proxy server "{proxy_name}" deleted successfully!', 'success')
+    return redirect(url_for('admin_proxies'))
 
 # Initialize database
 init_db()

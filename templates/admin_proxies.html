@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Proxy Servers - M3U Player Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="bi bi-shield-lock"></i> Proxy Servers
+                </h1>
+                <div>
+                    <a href="{{ url_for('admin_add_proxy') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Proxy Server
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Geo-blocking Bypass:</strong> Configure proxy servers to bypass geographical restrictions for blocked streams. Proxies will be used automatically when streaming content.
+            </div>
+
+            {% if proxies %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list"></i> Configured Proxy Servers ({{ proxies|length }})
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Host:Port</th>
+                                    <th>Country</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th width="150">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proxy in proxies %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ proxy.name }}</strong>
+                                        {% if proxy.username %}
+                                        <br><small class="text-muted"><i class="bi bi-person"></i> Auth configured</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ proxy.proxy_type.upper() }}</span>
+                                    </td>
+                                    <td>
+                                        <code>{{ proxy.host }}:{{ proxy.port }}</code>
+                                    </td>
+                                    <td>
+                                        {% if proxy.country_code %}
+                                        <span class="badge bg-secondary">{{ proxy.country_code }}</span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if proxy.is_active %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Active
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-pause-circle"></i> Inactive
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ proxy.created_at.strftime('%Y-%m-%d') }}</small>
+                                    </td>
+                                    <td class="table-actions">
+                                        <form method="POST" action="{{ url_for('admin_toggle_proxy', proxy_id=proxy.id) }}" style="display: inline;">
+                                            {% if proxy.is_active %}
+                                            <button type="submit" class="btn btn-sm btn-warning" title="Deactivate">
+                                                <i class="bi bi-pause"></i>
+                                            </button>
+                                            {% else %}
+                                            <button type="submit" class="btn btn-sm btn-success" title="Activate">
+                                                <i class="bi bi-play"></i>
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                        
+                                        <form method="POST" action="{{ url_for('admin_delete_proxy', proxy_id=proxy.id) }}" 
+                                              style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to delete proxy server {{ proxy.name }}?');">
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-shield-x display-1 text-muted"></i>
+                <h3 class="mt-3">No Proxy Servers Configured</h3>
+                <p class="text-muted mb-4">Add proxy servers to bypass geo-blocking for restricted streams.</p>
+                <a href="{{ url_for('admin_add_proxy') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Your First Proxy Server
+                </a>
+            </div>
+            {% endif %}
+
+            {% if proxies %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-info-circle"></i> How Proxy Servers Work
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-1-circle"></i> Configuration</h6>
+                            <p class="small text-muted">Add proxy servers with their connection details and target countries.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-2-circle"></i> Automatic Selection</h6>
+                            <p class="small text-muted">The system automatically selects an active proxy when streaming geo-blocked content.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="bi bi-3-circle"></i> Bypass Restrictions</h6>
+                            <p class="small text-muted">Streams appear to originate from the proxy's location, bypassing geographical restrictions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
