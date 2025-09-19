@@ -34,6 +34,13 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 # Create uploads directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Ensure database directory exists for SQLite
+db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+if db_path and '/' in db_path:
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
 db.init_app(app)
 
 # Database Models
