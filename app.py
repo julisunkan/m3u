@@ -523,6 +523,11 @@ def admin_dashboard():
 def admin_import_playlist():
     """Optimized import with caching"""
     if request.method == 'POST':
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid security token. Please try again.', 'error')
+            return render_template('admin_import.html')
+
         playlist_name = request.form.get('playlist_name')
         m3u_url = request.form.get('m3u_url')
         m3u_file = request.files.get('m3u_file')
@@ -590,6 +595,11 @@ def admin_import_playlist():
 @require_admin
 def admin_refresh_playlist(playlist_id):
     """Refresh playlist from original URL"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_view_playlist', playlist_id=playlist_id))
+
     playlist = Playlist.query.get_or_404(playlist_id)
     
     if not playlist.url:
@@ -642,6 +652,11 @@ def admin_refresh_playlist(playlist_id):
 @require_admin
 def admin_delete_playlist(playlist_id):
     """Delete a playlist"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_dashboard'))
+
     playlist = Playlist.query.get_or_404(playlist_id)
     playlist_name = playlist.name
 
@@ -675,6 +690,11 @@ def admin_view_channel(channel_id):
 @require_admin
 def admin_add_stream(channel_id):
     """Add a new stream to a channel"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_view_channel', channel_id=channel_id))
+
     channel = Channel.query.get_or_404(channel_id)
 
     resolution_label = request.form.get('resolution_label')
@@ -700,6 +720,11 @@ def admin_add_stream(channel_id):
 @require_admin
 def admin_delete_stream(stream_id):
     """Delete a stream"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_dashboard'))
+
     stream = Stream.query.get_or_404(stream_id)
     channel_id = stream.channel_id
 
@@ -753,6 +778,11 @@ def admin_add_proxy():
 @require_admin
 def admin_toggle_proxy(proxy_id):
     """Toggle proxy server active status"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_proxies'))
+
     proxy = ProxyServer.query.get_or_404(proxy_id)
     proxy.is_active = not proxy.is_active
     db.session.commit()
@@ -765,6 +795,11 @@ def admin_toggle_proxy(proxy_id):
 @require_admin
 def admin_delete_proxy(proxy_id):
     """Delete proxy server"""
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid security token. Please try again.', 'error')
+        return redirect(url_for('admin_proxies'))
+
     proxy = ProxyServer.query.get_or_404(proxy_id)
     proxy_name = proxy.name
 

@@ -150,3 +150,84 @@
     </div>
 </div>
 {% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Proxy Servers - M3U Player{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Proxy Servers</h4>
+                    <div>
+                        <a href="{{ url_for('admin_add_proxy') }}" class="btn btn-primary">Add Proxy</a>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    {% if proxies %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Host:Port</th>
+                                        <th>Country</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for proxy in proxies %}
+                                        <tr>
+                                            <td>{{ proxy.name }}</td>
+                                            <td>{{ proxy.proxy_type.upper() }}</td>
+                                            <td>{{ proxy.host }}:{{ proxy.port }}</td>
+                                            <td>{{ proxy.country_code or 'N/A' }}</td>
+                                            <td>
+                                                {% if proxy.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('admin_toggle_proxy', proxy_id=proxy.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-warning">
+                                                        {% if proxy.is_active %}Deactivate{% else %}Activate{% endif %}
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ url_for('admin_delete_proxy', proxy_id=proxy.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this proxy?')">Delete</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No proxy servers configured.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

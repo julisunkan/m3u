@@ -156,3 +156,104 @@
     </div>
 </div>
 {% endblock %}
+{% extends "base.html" %}
+
+{% block title %}{{ channel.name }} - Channel Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">{{ channel.name }}</h4>
+                    <div>
+                        <a href="{{ url_for('admin_view_playlist', playlist_id=channel.playlist.id) }}" class="btn btn-secondary">Back to Playlist</a>
+                        <a href="{{ url_for('play_channel', channel_id=channel.id) }}" class="btn btn-success" target="_blank">Play Channel</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <div class="mb-4">
+                        <p><strong>Playlist:</strong> {{ channel.playlist.name }}</p>
+                        {% if channel.logo_url %}
+                            <p><strong>Logo:</strong> <img src="{{ channel.logo_url }}" alt="Logo" style="max-height: 50px;"></p>
+                        {% endif %}
+                        {% if channel.group_title %}
+                            <p><strong>Group:</strong> {{ channel.group_title }}</p>
+                        {% endif %}
+                    </div>
+
+                    <h5>Streams ({{ channel.stream_count }})</h5>
+                    {% if channel.streams %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Resolution</th>
+                                        <th>URL</th>
+                                        <th>Type</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stream in channel.streams %}
+                                        <tr>
+                                            <td>{{ stream.resolution_label }}</td>
+                                            <td>
+                                                <small class="text-muted">{{ stream.url[:50] }}{% if stream.url|length > 50 %}...{% endif %}</small>
+                                            </td>
+                                            <td>
+                                                {% if stream.is_hls %}
+                                                    <span class="badge bg-success">HLS</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">Direct</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('admin_delete_stream', stream_id=stream.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this stream?')">Delete</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No streams found for this channel.</p>
+                    {% endif %}
+
+                    <hr>
+                    <h5>Add New Stream</h5>
+                    <form method="POST" action="{{ url_for('admin_add_stream', channel_id=channel.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" name="resolution_label" placeholder="Resolution (e.g., HD, SD)" required>
+                            </div>
+                            <div class="col-md-7">
+                                <input type="url" class="form-control" name="url" placeholder="Stream URL" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary">Add Stream</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
