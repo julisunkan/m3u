@@ -1,130 +1,197 @@
+
 {% extends "base.html" %}
 
-{% block title %}{{ channel.name }} - M3U Player{% endblock %}
+{% block title %}Manage {{ channel.name }} - Admin - M3U Player{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow-lg">
-            <div class="card-header bg-primary text-white">
-                <h3 class="mb-0">
-                    <i class="bi bi-tv"></i> {{ channel.name }}
-                    <span class="badge bg-light text-primary ms-2">{{ channel.playlist.name }}</span>
-                </h3>
-            </div>
-            <div class="card-body">
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <p><strong>Channel ID:</strong> {{ channel.id }}</p>
-                        <p><strong>Playlist:</strong> {{ channel.playlist.name }}</p>
-                        {% if channel.group_title %}
-                            <p><strong>Group:</strong> {{ channel.group_title }}</p>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        {% if channel.logo_url %}
-                            <img src="{{ channel.logo_url }}" alt="{{ channel.name }}" class="img-fluid rounded" style="max-height: 100px;">
-                        {% endif %}
-                    </div>
-                </div>
-
-                <h4><i class="bi bi-broadcast"></i> Streams ({{ channel.stream_count }})</h4>
-
-                {% if channel.streams %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Resolution</th>
-                                    <th>URL</th>
-                                    <th>Type</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stream in channel.streams %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-primary">{{ stream.resolution_label }}</span>
-                                    </td>
-                                    <td>
-                                        <code class="small">{{ stream.url[:60] }}{% if stream.url|length > 60 %}...{% endif %}</code>
-                                    </td>
-                                    <td>
-                                        {% if stream.is_hls %}
-                                            <span class="badge bg-success">HLS</span>
-                                        {% else %}
-                                            <span class="badge bg-info">Direct</span>
-                                        {% endif %}
-                                        {% if stream.needs_proxy %}
-                                            <span class="badge bg-warning">Proxy</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <form method="POST" action="{{ url_for('admin_delete_stream', stream_id=stream.id) }}" class="d-inline">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                                    onclick="return confirm('Delete this stream?')">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> No streams found for this channel.
-                    </div>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="bi bi-broadcast"></i> {{ channel.name }}</h1>
+            <small class="text-muted">
+                Playlist: <a href="{{ url_for('admin_view_playlist', playlist_id=channel.playlist.id) }}">{{ channel.playlist.name }}</a>
+                {% if channel.group_title %}
+                    | Group: {{ channel.group_title }}
                 {% endif %}
+            </small>
+        </div>
+        <div>
+            <a href="{{ url_for('play_channel', channel_id=channel.id) }}" class="btn btn-success" target="_blank">
+                <i class="bi bi-play-circle"></i> Test Play
+            </a>
+            <a href="{{ url_for('admin_view_playlist', playlist_id=channel.playlist.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Playlist
+            </a>
+        </div>
+    </div>
 
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stream</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" action="{{ url_for('admin_add_stream', channel_id=channel.id) }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label for="resolution_label" class="form-label">Resolution</label>
-                                        <select class="form-select" id="resolution_label" name="resolution_label" required>
-                                            <option value="">Select...</option>
-                                            <option value="SD">SD (480p)</option>
-                                            <option value="HD">HD (720p)</option>
-                                            <option value="FHD">FHD (1080p)</option>
-                                            <option value="4K">4K (2160p)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-7">
-                                    <div class="mb-3">
-                                        <label for="url" class="form-label">Stream URL</label>
-                                        <input type="url" class="form-control" id="url" name="url" required
-                                               placeholder="https://example.com/stream.m3u8">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">&nbsp;</label>
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-plus"></i> Add
-                                    </button>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Channel Streams -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-film"></i> Channel Streams ({{ channel.streams.count() }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if channel.streams %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Resolution</th>
+                                        <th>URL</th>
+                                        <th>Type</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stream in channel.streams %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ stream.resolution_label }}</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-truncate" style="max-width: 300px; display: inline-block;">
+                                                {{ stream.url }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            {% if stream.is_hls %}
+                                                <span class="badge bg-success">HLS</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">Direct</span>
+                                            {% endif %}
+                                            {% if stream.needs_proxy %}
+                                                <span class="badge bg-warning">Proxy</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form method="POST" action="{{ url_for('admin_delete_stream', stream_id=stream.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="return confirm('Delete this stream?')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-film" style="font-size: 3rem; color: #6c757d;"></i>
+                            <h5 class="text-muted mt-3">No Streams Available</h5>
+                            <p class="text-muted">Add your first stream URL below.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Add New Stream -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stream</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_add_stream', channel_id=channel.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="resolution_label" class="form-label">Resolution Label *</label>
+                                    <select class="form-select" id="resolution_label" name="resolution_label" required>
+                                        <option value="">Choose resolution...</option>
+                                        <option value="SD">SD (Standard Definition)</option>
+                                        <option value="HD">HD (720p)</option>
+                                        <option value="FHD">FHD (1080p)</option>
+                                        <option value="4K">4K (2160p)</option>
+                                        <option value="Auto">Auto Quality</option>
+                                    </select>
                                 </div>
                             </div>
-                        </form>
-                    </div>
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="url" class="form-label">Stream URL *</label>
+                                    <input type="url" class="form-control" id="url" name="url" 
+                                           placeholder="https://example.com/stream.m3u8" required>
+                                    <div class="form-text">
+                                        Supported: HLS (.m3u8), Direct video files (MP4, TS), Audio streams
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Add Stream
+                        </button>
+                    </form>
                 </div>
+            </div>
+        </div>
 
-                <div class="d-flex gap-2 mt-4">
-                    <a href="{{ url_for('play_channel', channel_id=channel.id) }}" class="btn btn-success">
-                        <i class="bi bi-play-circle"></i> Test Play
-                    </a>
-                    <a href="{{ url_for('admin_view_playlist', playlist_id=channel.playlist_id) }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to Playlist
-                    </a>
+        <!-- Channel Information Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Channel Information</h6>
+                </div>
+                <div class="card-body">
+                    {% if channel.logo_url %}
+                    <div class="text-center mb-3">
+                        <img src="{{ channel.logo_url }}" alt="{{ channel.name }}" 
+                             class="img-fluid rounded" style="max-height: 100px;">
+                    </div>
+                    {% endif %}
+
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Name:</th>
+                            <td>{{ channel.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Playlist:</th>
+                            <td>{{ channel.playlist.name }}</td>
+                        </tr>
+                        {% if channel.group_title %}
+                        <tr>
+                            <th>Group:</th>
+                            <td>{{ channel.group_title }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Streams:</th>
+                            <td>{{ channel.streams.count() }}</td>
+                        </tr>
+                        <tr>
+                            <th>Created:</th>
+                            <td>{{ channel.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                    </table>
+
+                    <hr>
+                    
+                    <h6>Stream Quality Guide</h6>
+                    <ul class="small">
+                        <li><strong>SD:</strong> 480p, lower bandwidth</li>
+                        <li><strong>HD:</strong> 720p, good quality</li>
+                        <li><strong>FHD:</strong> 1080p, high quality</li>
+                        <li><strong>4K:</strong> 2160p, ultra high quality</li>
+                        <li><strong>Auto:</strong> Adaptive quality</li>
+                    </ul>
                 </div>
             </div>
         </div>

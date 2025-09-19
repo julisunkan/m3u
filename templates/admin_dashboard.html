@@ -22,71 +22,89 @@
             </a>
         </div>
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     
     {% if playlists %}
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-collection-play"></i> Manage Playlists</h5>
+            <h5 class="mb-0"><i class="bi bi-collection-play"></i> Manage Playlists ({{ playlists|length }})</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+                <table class="table table-striped mb-0">
+                    <thead>
                         <tr>
-                            <th>Name</th>
+                            <th>Playlist Name</th>
                             <th>Channels</th>
-                            <th>Last Refresh</th>
                             <th>Created</th>
-                            <th class="table-actions">Actions</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for playlist, channel_count in playlists %}
+                        {% for playlist_info in playlists %}
+                            {% set playlist = playlist_info[0] %}
+                            {% set channel_count = playlist_info[1] %}
                         <tr>
                             <td>
                                 <strong>{{ playlist.name }}</strong>
                                 {% if playlist.url %}
-                                <br><small class="text-muted">
-                                    <i class="bi bi-link-45deg"></i> Cached from URL
-                                </small>
+                                    <br><small class="text-muted">
+                                        <i class="bi bi-link-45deg"></i> URL Source
+                                    </small>
                                 {% endif %}
                             </td>
                             <td>
                                 <span class="badge bg-primary">{{ channel_count }} channels</span>
                             </td>
                             <td>
-                                {% if playlist.last_refresh %}
-                                <small class="text-muted">{{ playlist.last_refresh.strftime('%Y-%m-%d %H:%M') }}</small>
-                                {% if playlist.needs_refresh() %}
-                                <br><span class="badge bg-warning">Needs Refresh</span>
-                                {% endif %}
-                                {% else %}
-                                <small class="text-muted">Never</small>
-                                {% endif %}
+                                <small>{{ playlist.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                             </td>
                             <td>
-                                <small class="text-muted">{{ playlist.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <small>
+                                    {{ playlist.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% if playlist.last_refresh %}
+                                        <br><span class="text-success">
+                                            <i class="bi bi-arrow-clockwise"></i> 
+                                            Refreshed: {{ playlist.last_refresh.strftime('%m-%d %H:%M') }}
+                                        </span>
+                                    {% endif %}
+                                </small>
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
+                                <div class="btn-group" role="group">
                                     <a href="{{ url_for('admin_view_playlist', playlist_id=playlist.id) }}" 
-                                       class="btn btn-outline-primary btn-sm-icon" title="View Channels">
-                                        <i class="bi bi-eye"></i>
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
                                     </a>
+                                    
                                     {% if playlist.url %}
-                                    <form method="POST" action="{{ url_for('admin_refresh_playlist', playlist_id=playlist.id) }}" 
-                                          class="d-inline" onsubmit="return confirm('Refresh playlist from original URL?')">
+                                    <form method="POST" action="{{ url_for('admin_refresh_playlist', playlist_id=playlist.id) }}" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-outline-success btn-sm-icon" title="Refresh Playlist">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" 
+                                                title="Refresh from URL">
                                             <i class="bi bi-arrow-clockwise"></i>
                                         </button>
                                     </form>
                                     {% endif %}
-                                    <button type="button" class="btn btn-outline-danger btn-sm-icon" 
-                                            onclick="confirmDelete('{{ playlist.name }}', '{{ url_for('admin_delete_playlist', playlist_id=playlist.id) }}')"
-                                            title="Delete Playlist">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    
+                                    <form method="POST" action="{{ url_for('admin_delete_playlist', playlist_id=playlist.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                onclick="return confirm('Delete playlist &quot;{{ playlist.name }}&quot; and all its channels?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -96,78 +114,48 @@
             </div>
         </div>
     </div>
-    
-    <!-- Performance Tips -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Performance Tips</h6>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <h6>Playlist Management</h6>
-                    <ul class="small">
-                        <li>Playlists are cached locally for faster loading</li>
-                        <li>Use the refresh button to update from original URL</li>
-                        <li>Channels are paginated to reduce memory usage</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <h6>Server Resources</h6>
-                    <ul class="small">
-                        <li>Channel browsing uses AJAX pagination</li>
-                        <li>Status checks are optimized for performance</li>
-                        <li>Static files are cached by the browser</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     {% else %}
     <div class="text-center py-5">
-        <i class="bi bi-collection-play display-1 text-muted"></i>
-        <h3 class="mt-3">No Playlists Found</h3>
-        <p class="text-muted">Import your first M3U playlist to get started.</p>
-        <a href="{{ url_for('admin_import_playlist') }}" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Import Playlist
+        <div class="mb-4">
+            <i class="bi bi-collection-play" style="font-size: 4rem; color: #6c757d;"></i>
+        </div>
+        <h3 class="text-muted">No Playlists Found</h3>
+        <p class="text-muted mb-4">Start by importing your first M3U playlist.</p>
+        <a href="{{ url_for('admin_import_playlist') }}" class="btn btn-success btn-lg">
+            <i class="bi bi-plus-circle"></i> Import Your First Playlist
         </a>
     </div>
     {% endif %}
-</div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Statistics Card -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h2>{{ playlists|length }}</h2>
+                    <p class="mb-0">Total Playlists</p>
+                </div>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete the playlist "<span id="delete-name"></span>"?</p>
-                <p class="text-danger"><strong>This action cannot be undone and will delete all channels in this playlist.</strong></p>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h2>
+                        {% set total_channels = playlists|sum(attribute='1') %}
+                        {{ total_channels }}
+                    </h2>
+                    <p class="mb-0">Total Channels</p>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="delete-form" method="POST" class="d-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Delete Playlist
-                    </button>
-                </form>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h2>{{ (playlists|selectattr('0.is_cached')|list|length) }}</h2>
+                    <p class="mb-0">Cached Playlists</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function confirmDelete(name, url) {
-    document.getElementById('delete-name').textContent = name;
-    document.getElementById('delete-form').action = url;
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
-}
-</script>
 {% endblock %}
