@@ -16,10 +16,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "M3U Player Server"
+args = "M3U Player"
 
 [[workflows.workflow]]
-name = "M3U Player Server"
+name = "M3U Player"
 author = "agent"
 
 [[workflows.workflow.tasks]]
