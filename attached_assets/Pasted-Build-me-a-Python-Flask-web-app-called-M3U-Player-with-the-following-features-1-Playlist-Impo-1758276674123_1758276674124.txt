@@ -1,0 +1,58 @@
+Build me a Python Flask web app called “M3U Player” with the following features:
+
+1. Playlist Import & Persistence:
+   - Users (admin only) can paste an M3U playlist URL or upload a local `.m3u` file.
+   - Parse the playlist, extract channel names + stream URLs.
+   - Save playlists and channels permanently in a SQLite database.
+   - Each channel can optionally store multiple stream URLs for different qualities (SD, HD, 4K, etc.).
+
+2. Channel Management:
+   - Provide an admin interface (password-protected) where the admin can:
+     - View all saved playlists.
+     - Edit playlist name.
+     - Delete playlists.
+     - View, edit, or delete individual channels inside a playlist.
+     - Assign multiple resolution links (e.g., SD, 720p, 1080p, 4K) for each channel.
+
+3. Channel Browser (User View):
+   - Display all channels in a searchable, paginated list (20 per page).
+   - Add a search bar to filter by channel name.
+   - Each channel has a “Play” button.
+
+4. Video Player with Resolution Switching:
+   - If the stream is `.m3u8` (HLS), use **hls.js** for adaptive bitrate playback.
+   - Add a **resolution dropdown menu** (SD → 144p/240p/360p/480p, HD → 720p/1080p, QHD → 1440p, UHD → 2160p, 8K → 4320p, and experimental 16K/32K if available).
+   - The dropdown should let the user manually switch between available resolution URLs for a channel.
+   - If only one URL is provided, default to it.
+   - Show "Now Playing" above the player with the channel name and selected resolution.
+
+5. Proxy Support:
+   - If the stream is non-HLS but a direct file stream (mp4, ts, aac), use a Flask proxy endpoint to relay the stream to the video player.
+
+6. Frontend:
+   - Use **Bootstrap or Tailwind** for styling.
+   - Make the channel list responsive and mobile-friendly.
+   - Add pagination controls.
+   - Add a sticky video player section with a resolution dropdown.
+
+7. Admin/Extras:
+   - Admin login page (basic username/password stored in config or environment).
+   - Admin dashboard to manage playlists and channels.
+   - Confirmation prompts before deleting playlists or channels.
+   - Database schema:
+     - `playlists(id, name, created_at)`
+     - `channels(id, playlist_id, name)`
+     - `streams(id, channel_id, resolution_label, url)`  ← for multiple resolutions
+
+Tech Stack:
+- Flask
+- SQLite (with SQLAlchemy ORM or plain SQLite3)
+- hls.js (frontend HLS support + resolution menu)
+- Bootstrap/Tailwind (UI)
+
+The project should include:
+- `app.py` (Flask backend with routes for playlists, channels, proxy, admin)
+- `templates/index.html` (user-facing channel list & player with resolution switcher)
+- `templates/admin.html` (admin dashboard)
+- `templates/login.html` (admin login)
+- `static/hls.min.js` (HLS playback)
