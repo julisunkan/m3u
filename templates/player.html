@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel.name }} - M3U Player{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Video Player Section (Sticky) -->
+    <div class="video-player-section">
+        <div class="container py-3">
+            <div class="row">
+                <div class="col-12">
+                    <!-- Now Playing Info -->
+                    <div class="now-playing">
+                        <h4 class="mb-1">
+                            <i class="bi bi-play-circle-fill"></i> Now Playing
+                        </h4>
+                        <h5 class="mb-1" id="channel-name">{{ channel.name }}</h5>
+                        <p class="mb-0">
+                            <i class="bi bi-collection-play"></i> {{ channel.playlist.name }}
+                            <span class="ms-2" id="resolution-info">
+                                <i class="bi bi-camera-video"></i> <span id="current-resolution">Loading...</span>
+                            </span>
+                        </p>
+                    </div>
+                    
+                    <!-- Video Container -->
+                    <div class="video-container">
+                        <video id="video-player" class="w-100 h-100" controls crossorigin="anonymous">
+                            <p>Your browser does not support HTML5 video.</p>
+                        </video>
+                        
+                        <!-- Resolution Selector -->
+                        <select id="resolution-selector" class="resolution-selector">
+                            <option value="">Loading streams...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Back to Channel List -->
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-12">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Channel List
+                </a>
+                
+                <!-- Stream Information -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle"></i> Stream Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Channel:</strong> {{ channel.name }}</p>
+                                <p><strong>Playlist:</strong> {{ channel.playlist.name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Available Streams:</strong> {{ channel.streams|length }}</p>
+                                <p><strong>Stream Type:</strong> <span id="stream-type">Detecting...</span></p>
+                            </div>
+                        </div>
+                        
+                        <!-- Available Streams List -->
+                        <div class="mt-3">
+                            <h6>Available Resolutions:</h6>
+                            <div id="streams-list" class="row">
+                                {% for stream in channel.streams %}
+                                <div class="col-md-4 mb-2">
+                                    <div class="card border-secondary">
+                                        <div class="card-body p-2">
+                                            <small class="text-muted">{{ stream.resolution_label }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+class VideoPlayer {
+    constructor(channelId) {
+        this.channelId = channelId;
+        this.video = document.getElementById('video-player');
+        this.resolutionSelector = document.getElementById('resolution-selector');
+        this.currentResolutionSpan = document.getElementById('current-resolution');
+        this.streamTypeSpan = document.getElementById('stream-type');
+        this.hls = null;
+        this.streams = [];
+        this.currentStream = null;
+        
+        this.init();
+    }
+    
+    async init() {
+        try {
+            // Fetch stream data
+            const response = await fetch(`/api/channel/${this.channelId}/streams`);
+            const data = await response.json();
+            this.streams = data.streams;
+            
+            if (this.streams.length === 0) {
+                this.showError('No streams available for this channel');
+                return;
+            }
+            
+            // Populate resolution selector
+            this.populateResolutionSelector();
+            
+            // Load default stream (first one)
+            this.loadStream(this.streams[0]);
+            
+            // Setup event listeners
+            this.setupEventListeners();
+            
+        } catch (error) {
+            console.error('Error initializing player:', error);
+            this.showError('Failed to load stream data');
+        }
+    }
+    
+    populateResolutionSelector() {
+        this.resolutionSelector.innerHTML = '';
+        
+        this.streams.forEach((stream, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = stream.resolution_label;
+            this.resolutionSelector.appendChild(option);
+        });
+        
+        this.resolutionSelector.value = '0'; // Select first stream by default
+    }
+    
+    setupEventListeners() {
+        this.resolutionSelector.addEventListener('change', (e) => {
+            const streamIndex = parseInt(e.target.value);
+            if (streamIndex >= 0 && streamIndex < this.streams.length) {
+                this.loadStream(this.streams[streamIndex]);
+            }
+        });
+        
+        // Video error handling
+        this.video.addEventListener('error', (e) => {
+            console.error('Video error:', e);
+            this.showError('Video playback error');
+        });
+        
+        // Video loaded metadata
+        this.video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded');
+        });
+    }
+    
+    loadStream(stream) {
+        this.currentStream = stream;
+        this.currentResolutionSpan.textContent = stream.resolution_label;
+        
+        // Clean up previous HLS instance
+        if (this.hls) {
+            this.hls.destroy();
+            this.hls = null;
+        }
+        
+        // Determine stream type and load accordingly
+        const streamUrl = stream.url.toLowerCase();
+        
+        if (streamUrl.includes('.m3u8')) {
+            this.loadHLSStream(stream);
+        } else if (streamUrl.includes('.mp4') || streamUrl.includes('.ts') || streamUrl.includes('.aac')) {
+            this.loadDirectStream(stream);
+        } else {
+            // Try HLS first, fallback to direct
+            this.loadHLSStream(stream);
+        }
+    }
+    
+    loadHLSStream(stream) {
+        this.streamTypeSpan.textContent = 'HLS (.m3u8)';
+        
+        if (Hls.isSupported()) {
+            this.hls = new Hls({
+                debug: false,
+                enableWorker: true,
+                lowLatencyMode: false,
+                backBufferLength: 90
+            });
+            
+            this.hls.loadSource(stream.url);
+            this.hls.attachMedia(this.video);
+            
+            this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                console.log('HLS manifest loaded, found', this.hls.levels.length, 'quality levels');
+                this.video.play().catch(e => {
+                    console.log('Autoplay prevented:', e);
+                });
+            });
+            
+            this.hls.on(Hls.Events.ERROR, (event, data) => {
+                console.error('HLS error:', data);
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.log('Fatal network error, trying to recover...');
+                            this.hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log('Fatal media error, trying to recover...');
+                            this.hls.recoverMediaError();
+                            break;
+                        default:
+                            console.log('Fatal error, cannot recover');
+                            this.showError('Stream playback failed');
+                            break;
+                    }
+                }
+            });
+            
+        } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari native HLS support
+            this.video.src = stream.url;
+            this.video.addEventListener('loadedmetadata', () => {
+                this.video.play().catch(e => {
+                    console.log('Autoplay prevented:', e);
+                });
+            });
+        } else {
+            this.showError('HLS not supported in this browser');
+        }
+    }
+    
+    loadDirectStream(stream) {
+        // Determine stream type
+        const streamUrl = stream.url.toLowerCase();
+        if (streamUrl.includes('.mp4')) {
+            this.streamTypeSpan.textContent = 'Direct (MP4)';
+        } else if (streamUrl.includes('.ts')) {
+            this.streamTypeSpan.textContent = 'Direct (TS)';
+        } else if (streamUrl.includes('.aac')) {
+            this.streamTypeSpan.textContent = 'Direct (AAC)';
+        } else {
+            this.streamTypeSpan.textContent = 'Direct Stream';
+        }
+        
+        // Use proxy endpoint for direct streams to avoid CORS issues
+        const proxyUrl = `/proxy/${stream.id}`;
+        this.video.src = proxyUrl;
+        
+        this.video.addEventListener('loadedmetadata', () => {
+            this.video.play().catch(e => {
+                console.log('Autoplay prevented:', e);
+            });
+        });
+    }
+    
+    showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger mt-3';
+        errorDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${message}`;
+        
+        const container = document.querySelector('.container');
+        container.insertBefore(errorDiv, container.firstChild);
+        
+        // Remove error after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 5000);
+    }
+}
+
+// Initialize player when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const channelId = {{ channel.id }};
+    new VideoPlayer(channelId);
+});
+</script>
+{% endblock %}

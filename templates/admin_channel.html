@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel.name }} - Admin - M3U Player{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="bi bi-camera-video"></i> {{ channel.name }}</h1>
+            <p class="text-muted mb-0">
+                Playlist: {{ channel.playlist.name }}
+                <span class="ms-2 badge bg-info">{{ channel.streams|length }} stream{{ 's' if channel.streams|length != 1 else '' }}</span>
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('play_channel', channel_id=channel.id) }}" 
+               class="btn btn-success me-2" target="_blank">
+                <i class="bi bi-play-fill"></i> Play
+            </a>
+            <a href="{{ url_for('admin_view_playlist', playlist_id=channel.playlist.id) }}" 
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Playlist
+            </a>
+        </div>
+    </div>
+    
+    <!-- Add New Stream -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Stream Resolution</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_add_stream', channel_id=channel.id) }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="resolution_label" class="form-label">Resolution Label</label>
+                        <select class="form-control" id="resolution_label" name="resolution_label" required>
+                            <option value="">Select Resolution</option>
+                            <option value="SD">SD (Standard Definition)</option>
+                            <option value="480p">480p</option>
+                            <option value="720p">720p (HD)</option>
+                            <option value="1080p">1080p (Full HD)</option>
+                            <option value="1440p">1440p (QHD)</option>
+                            <option value="2160p">2160p (4K UHD)</option>
+                            <option value="4320p">4320p (8K)</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="col-md-7">
+                        <label for="url" class="form-label">Stream URL</label>
+                        <input type="url" class="form-control" id="url" name="url" 
+                               placeholder="https://example.com/stream.m3u8" required>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Existing Streams -->
+    {% if channel.streams %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-list"></i> Current Streams</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Resolution</th>
+                            <th>Stream URL</th>
+                            <th>Type</th>
+                            <th class="table-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stream in channel.streams %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary">{{ stream.resolution_label }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted font-monospace">
+                                    {{ stream.url[:60] }}{% if stream.url|length > 60 %}...{% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if '.m3u8' in stream.url.lower() %}
+                                <span class="badge bg-success">HLS</span>
+                                {% elif '.mp4' in stream.url.lower() %}
+                                <span class="badge bg-info">MP4</span>
+                                {% elif '.ts' in stream.url.lower() %}
+                                <span class="badge bg-warning">TS</span>
+                                {% elif '.aac' in stream.url.lower() %}
+                                <span class="badge bg-secondary">AAC</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">Other</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin_delete_stream', stream_id=stream.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('Are you sure you want to delete this stream?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm-icon" title="Delete Stream">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-camera-video-off display-1 text-muted"></i>
+            <h3 class="mt-3">No Streams Available</h3>
+            <p class="text-muted">Add stream URLs for different resolutions above.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Stream Information -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="bi bi-info-circle"></i> Resolution Guidelines</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Standard Resolutions</h6>
+                    <ul class="small">
+                        <li><strong>SD:</strong> 480p or lower (640x480)</li>
+                        <li><strong>720p:</strong> HD (1280x720)</li>
+                        <li><strong>1080p:</strong> Full HD (1920x1080)</li>
+                        <li><strong>1440p:</strong> QHD (2560x1440)</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Ultra High Definition</h6>
+                    <ul class="small">
+                        <li><strong>2160p:</strong> 4K UHD (3840x2160)</li>
+                        <li><strong>4320p:</strong> 8K UHD (7680x4320)</li>
+                        <li><strong>Custom:</strong> Any other resolution</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
