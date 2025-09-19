@@ -2,6 +2,7 @@ import os
 import re
 import requests
 import random
+import secrets
 from datetime import datetime
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, flash
@@ -90,6 +91,37 @@ class ProxyServer(db.Model):
     def __repr__(self):
         return f'<ProxyServer {self.name}: {self.host}:{self.port}>'
 
+class AdminSetting(db.Model):
+    __tablename__ = 'admin_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(100), unique=True, nullable=False)
+    setting_value = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<AdminSetting {self.setting_key}>'
+    
+    @classmethod
+    def get_setting(cls, key, default=None):
+        """Get a setting value by key"""
+        setting = cls.query.filter_by(setting_key=key).first()
+        return setting.setting_value if setting else default
+    
+    @classmethod
+    def set_setting(cls, key, value):
+        """Set a setting value by key"""
+        setting = cls.query.filter_by(setting_key=key).first()
+        if setting:
+            setting.setting_value = value
+            setting.updated_at = datetime.utcnow()
+        else:
+            setting = cls(setting_key=key, setting_value=value)
+            db.session.add(setting)
+        db.session.commit()
+        return setting
+
 # M3U Parser Class
 class M3UParser:
     @staticmethod
@@ -134,6 +166,11 @@ ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 DEFAULT_PASSWORD_HASH = 'scrypt:32768:8:1$edToewmbQDVlSTvH$23e5b57664780220ce12c1396ca2b3922f0c5868798df91902a695fabe2e4afc9f7a3a18c2de4707c0a09549f2fe8170a735135167c103d21bf096abb6690f9f'
 ADMIN_PASSWORD_HASH = os.environ.get('ADMIN_PASSWORD_HASH', DEFAULT_PASSWORD_HASH)
 
+def get_admin_password_hash():
+    """Get admin password hash from database first, then fallback to environment variable"""
+    db_hash = AdminSetting.get_setting('admin_password_hash')
+    return db_hash if db_hash else ADMIN_PASSWORD_HASH
+
 def init_db():
     """Initialize the database"""
     with app.app_context():
@@ -155,6 +192,22 @@ def require_admin(f):
         return f(*args, **kwargs)
     decorated_function.__name__ = f.__name__
     return decorated_function
+
+# CSRF Protection helpers
+def generate_csrf_token():
+    """Generate a CSRF token and store it in the session"""
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_hex(16)
+    return session['_csrf_token']
+
+def validate_csrf_token(token):
+    """Validate the CSRF token against the session"""
+    return token and session.get('_csrf_token') == token
+
+# Make CSRF token available to templates
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf_token)
 
 # Routes
 @app.route('/')
@@ -335,11 +388,19 @@ def proxy_stream(stream_id):
 def admin_login():
     """Admin login page"""
     if request.method == 'POST':
+        # Validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid security token. Please try again.', 'error')
+            return render_template('admin_login.html')
+        
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if username == ADMIN_USERNAME and password and check_password_hash(ADMIN_PASSWORD_HASH, password):
+        if username == ADMIN_USERNAME and password and check_password_hash(get_admin_password_hash(), password):
             session['admin_logged_in'] = True
+            # Generate new CSRF token after login
+            session.pop('_csrf_token', None)
             flash('Successfully logged in!', 'success')
             return redirect(url_for('admin_dashboard'))
         else:
@@ -552,4 +613,51 @@ def admin_delete_proxy(proxy_id):
     
     flash(f'Proxy server "{proxy_name}" deleted successfully!', 'success')
     return redirect(url_for('admin_proxies'))
+
+@app.route('/admin/change-password', methods=['GET', 'POST'])
+@require_admin
+def admin_change_password():
+    """Change admin password"""
+    if request.method == 'POST':
+        # Validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid security token. Please try again.', 'error')
+            return render_template('admin_change_password.html')
+        
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate input
+        if not all([current_password, new_password, confirm_password]):
+            flash('All fields are required!', 'error')
+            return render_template('admin_change_password.html')
+        
+        # Verify current password
+        if not check_password_hash(get_admin_password_hash(), current_password):
+            flash('Current password is incorrect!', 'error')
+            return render_template('admin_change_password.html')
+        
+        # Check new password confirmation
+        if new_password != confirm_password:
+            flash('New passwords do not match!', 'error')
+            return render_template('admin_change_password.html')
+        
+        # Check password length (improved from 6 to 8 characters)
+        if len(new_password) < 8:
+            flash('New password must be at least 8 characters long!', 'error')
+            return render_template('admin_change_password.html')
+        
+        # Generate new password hash and save to database
+        new_password_hash = generate_password_hash(new_password)
+        AdminSetting.set_setting('admin_password_hash', new_password_hash)
+        
+        # Generate new CSRF token after password change
+        session.pop('_csrf_token', None)
+        
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('admin_change_password.html')
 
