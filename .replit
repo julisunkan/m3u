@@ -7,7 +7,7 @@ channel = "stable-25_05"
 packages = ["openssl", "postgresql"]
 
 [workflows]
-runButton = "M3U Player (Optimized)"
+runButton = "M3U Player (Production)"
 
 [[workflows.workflow]]
 name = "Project"
@@ -47,6 +47,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:$PORT --reuse-port --workers 2 --timeout 60 --keep-alive 2 main:app"
+
+[[workflows.workflow]]
+name = "M3U Player (Production)"
+author = 47777814
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --workers 2 --timeout 60 --keep-alive 2 main:app"
 
 [[ports]]
 localPort = 5000
