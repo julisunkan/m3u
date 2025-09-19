@@ -1,21 +1,64 @@
+
 {% extends "base.html" %}
 
 {% block title %}Channel Browser - M3U Player{% endblock %}
+
+{% block head %}
+<style>
+    .channel-grid {
+        min-height: 400px;
+    }
+    .channel-card {
+        transition: transform 0.2s ease;
+    }
+    .channel-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+    .channel-logo {
+        width: 60px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+    .channel-group {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    .lazy-load {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .lazy-load.loaded {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row">
         <div class="col-12">
-            <h1 class="mb-4">
-                <i class="bi bi-list-ul"></i> Channel Browser
-            </h1>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Channel Browser
+                </h1>
+                <div class="text-muted small">
+                    <i class="bi bi-collection-play"></i> {{ playlist_count }} playlists
+                </div>
+            </div>
             
             <!-- Search Form -->
             <div class="card mb-4">
                 <div class="card-body">
-                    <form method="GET" action="{{ url_for('index') }}" class="row">
+                    <form id="search-form" class="row">
                         <div class="col-md-10">
-                            <input type="text" name="search" class="form-control" 
+                            <input type="text" id="search-input" class="form-control" 
                                    placeholder="Search channels..." 
                                    value="{{ search_query }}"
                                    autocomplete="off">
@@ -29,30 +72,51 @@
                 </div>
             </div>
 
-            <!-- Channel Count -->
+            <!-- Channel Stats -->
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">
+                <h5 class="mb-0" id="channel-stats">
                     {% if search_query %}
                         Search results for "{{ search_query }}" ({{ channels.total }} channels)
                     {% else %}
                         All Channels ({{ channels.total }} total)
                     {% endif %}
                 </h5>
-                {% if search_query %}
-                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <button id="clear-search" class="btn btn-outline-secondary" style="display: {% if search_query %}block{% else %}none{% endif %}">
                     <i class="bi bi-x-circle"></i> Clear Search
-                </a>
-                {% endif %}
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading channels...</p>
             </div>
 
             <!-- Channels Grid -->
-            {% if channels.items %}
-            <div class="row">
+            <div class="row channel-grid" id="channels-container">
                 {% for channel in channels.items %}
-                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4">
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4 lazy-load loaded">
                     <div class="card channel-card h-100">
                         <div class="card-body d-flex flex-column">
-                            <h6 class="card-title">{{ channel.name }}</h6>
+                            <div class="d-flex align-items-start mb-2">
+                                {% if channel.logo_url %}
+                                <img src="{{ channel.logo_url }}" alt="{{ channel.name }}" 
+                                     class="channel-logo me-2" loading="lazy">
+                                {% else %}
+                                <div class="channel-logo me-2 bg-light d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-camera-video text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-1">{{ channel.name }}</h6>
+                                    {% if channel.group_title %}
+                                    <div class="channel-group text-muted">{{ channel.group_title }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
                             <p class="card-text text-muted small">
                                 <i class="bi bi-collection-play"></i> 
                                 {{ channel.playlist.name }}
@@ -67,10 +131,9 @@
                                 </span>
                             </p>
                             <div class="mt-auto">
-                                <a href="{{ url_for('play_channel', channel_id=channel.id) }}" 
-                                   class="btn btn-primary w-100">
+                                <button class="btn btn-primary w-100 play-btn" data-channel-id="{{ channel.id }}">
                                     <i class="bi bi-play-fill"></i> Play
-                                </a>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -79,12 +142,12 @@
             </div>
 
             <!-- Pagination -->
-            {% if channels.pages > 1 %}
-            <nav aria-label="Channel pagination">
+            <nav aria-label="Channel pagination" id="pagination-container">
+                {% if channels.pages > 1 %}
                 <ul class="pagination justify-content-center">
                     {% if channels.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('index', page=channels.prev_num, search=search_query) }}">
+                        <a class="page-link" href="#" data-page="{{ channels.prev_num }}">
                             <i class="bi bi-chevron-left"></i> Previous
                         </a>
                     </li>
@@ -94,7 +157,7 @@
                         {% if page_num %}
                             {% if page_num != channels.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('index', page=page_num, search=search_query) }}">
+                                <a class="page-link" href="#" data-page="{{ page_num }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -112,32 +175,21 @@
                     
                     {% if channels.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('index', page=channels.next_num, search=search_query) }}">
+                        <a class="page-link" href="#" data-page="{{ channels.next_num }}">
                             Next <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
                     {% endif %}
                 </ul>
+                {% endif %}
             </nav>
-            {% endif %}
 
-            {% else %}
-            <!-- No channels found -->
-            <div class="text-center py-5">
+            <!-- No channels message (initially hidden) -->
+            <div id="no-channels-message" class="text-center py-5" style="display: none;">
                 <i class="bi bi-search display-1 text-muted"></i>
                 <h3 class="mt-3">No channels found</h3>
-                {% if search_query %}
-                <p class="text-muted">Try adjusting your search terms or <a href="{{ url_for('index') }}">browse all channels</a>.</p>
-                {% else %}
-                <p class="text-muted">No channels have been imported yet.</p>
-                {% if session.admin_logged_in %}
-                <a href="{{ url_for('admin_import_playlist') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Import Playlist
-                </a>
-                {% endif %}
-                {% endif %}
+                <p class="text-muted" id="no-channels-text">No channels match your search criteria.</p>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -145,40 +197,340 @@
 
 {% block scripts %}
 <script>
-// Check channel statuses on page load
-document.addEventListener('DOMContentLoaded', function() {
-    checkAllChannelStatuses();
-});
-
-async function checkAllChannelStatuses() {
-    try {
-        const response = await fetch('/api/channels/status');
-        const data = await response.json();
+class ChannelBrowser {
+    constructor() {
+        this.currentSearch = '{{ search_query }}';
+        this.currentPage = {{ channels.page }};
+        this.loading = false;
         
-        data.channels.forEach(channel => {
-            updateChannelStatus(channel.id, channel.status);
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.checkChannelStatuses();
+        this.initLazyLoading();
+    }
+    
+    bindEvents() {
+        // Search form
+        document.getElementById('search-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.performSearch();
         });
-    } catch (error) {
-        console.error('Error checking channel statuses:', error);
-        // Mark all as offline if we can't check
-        document.querySelectorAll('.channel-status').forEach(badge => {
-            badge.className = 'badge bg-danger channel-status';
-            badge.innerHTML = '<i class="bi bi-x-circle"></i> OFFLINE';
+        
+        // Clear search
+        document.getElementById('clear-search').addEventListener('click', () => {
+            document.getElementById('search-input').value = '';
+            this.performSearch();
+        });
+        
+        // Pagination links
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('page-link') && e.target.dataset.page) {
+                e.preventDefault();
+                this.loadPage(parseInt(e.target.dataset.page));
+            }
+        });
+        
+        // Play buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('play-btn') || e.target.closest('.play-btn')) {
+                const btn = e.target.classList.contains('play-btn') ? e.target : e.target.closest('.play-btn');
+                const channelId = btn.dataset.channelId;
+                window.open(`/play/${channelId}`, '_blank');
+            }
+        });
+        
+        // Real-time search with debounce
+        let searchTimeout;
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (e.target.value !== this.currentSearch) {
+                    this.performSearch();
+                }
+            }, 500);
         });
     }
-}
-
-function updateChannelStatus(channelId, status) {
-    const badge = document.querySelector(`[data-channel-id="${channelId}"]`);
-    if (badge) {
-        if (status === 'ONLINE') {
-            badge.className = 'badge bg-success channel-status';
-            badge.innerHTML = '<i class="bi bi-check-circle"></i> ONLINE';
+    
+    async performSearch() {
+        const searchQuery = document.getElementById('search-input').value.trim();
+        this.currentSearch = searchQuery;
+        this.currentPage = 1;
+        
+        await this.loadChannels();
+        
+        // Update URL without page reload
+        const url = new URL(window.location);
+        if (searchQuery) {
+            url.searchParams.set('search', searchQuery);
         } else {
-            badge.className = 'badge bg-danger channel-status';
-            badge.innerHTML = '<i class="bi bi-x-circle"></i> OFFLINE';
+            url.searchParams.delete('search');
+        }
+        url.searchParams.delete('page');
+        window.history.pushState({}, '', url);
+        
+        // Update clear button visibility
+        document.getElementById('clear-search').style.display = searchQuery ? 'block' : 'none';
+    }
+    
+    async loadPage(page) {
+        this.currentPage = page;
+        await this.loadChannels();
+        
+        // Update URL
+        const url = new URL(window.location);
+        if (page > 1) {
+            url.searchParams.set('page', page);
+        } else {
+            url.searchParams.delete('page');
+        }
+        window.history.pushState({}, '', url);
+    }
+    
+    async loadChannels() {
+        if (this.loading) return;
+        
+        this.loading = true;
+        this.showLoading(true);
+        
+        try {
+            const params = new URLSearchParams();
+            if (this.currentSearch) {
+                params.set('search', this.currentSearch);
+            }
+            if (this.currentPage > 1) {
+                params.set('page', this.currentPage);
+            }
+            
+            const response = await fetch(`/api/channels?${params}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.renderChannels(data.channels);
+            this.renderPagination(data.pagination);
+            this.updateStats(data.pagination);
+            
+            // Check status for new channels
+            setTimeout(() => this.checkChannelStatuses(), 100);
+            
+        } catch (error) {
+            console.error('Error loading channels:', error);
+            this.showError('Failed to load channels. Please try again.');
+        } finally {
+            this.loading = false;
+            this.showLoading(false);
         }
     }
+    
+    renderChannels(channels) {
+        const container = document.getElementById('channels-container');
+        const noChannelsMsg = document.getElementById('no-channels-message');
+        
+        if (channels.length === 0) {
+            container.innerHTML = '';
+            noChannelsMsg.style.display = 'block';
+            return;
+        }
+        
+        noChannelsMsg.style.display = 'none';
+        
+        container.innerHTML = channels.map(channel => `
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4 lazy-load">
+                <div class="card channel-card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex align-items-start mb-2">
+                            ${channel.logo_url ? 
+                                `<img src="${channel.logo_url}" alt="${channel.name}" class="channel-logo me-2" loading="lazy">` :
+                                `<div class="channel-logo me-2 bg-light d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-camera-video text-muted"></i>
+                                </div>`
+                            }
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">${this.escapeHtml(channel.name)}</h6>
+                                ${channel.group_title ? `<div class="channel-group text-muted">${this.escapeHtml(channel.group_title)}</div>` : ''}
+                            </div>
+                        </div>
+                        
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-collection-play"></i> 
+                            ${this.escapeHtml(channel.playlist_name)}
+                        </p>
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-camera-video"></i> 
+                            ${channel.stream_count} stream${channel.stream_count !== 1 ? 's' : ''}
+                        </p>
+                        <p class="card-text small mb-2">
+                            <span class="badge bg-secondary channel-status" data-channel-id="${channel.id}">
+                                <i class="bi bi-hourglass-split"></i> Checking...
+                            </span>
+                        </p>
+                        <div class="mt-auto">
+                            <button class="btn btn-primary w-100 play-btn" data-channel-id="${channel.id}">
+                                <i class="bi bi-play-fill"></i> Play
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Trigger lazy loading animation
+        setTimeout(() => {
+            container.querySelectorAll('.lazy-load').forEach(el => {
+                el.classList.add('loaded');
+            });
+        }, 50);
+    }
+    
+    renderPagination(pagination) {
+        const container = document.getElementById('pagination-container');
+        
+        if (pagination.pages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        let paginationHtml = '<ul class="pagination justify-content-center">';
+        
+        // Previous button
+        if (pagination.has_prev) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="${pagination.page - 1}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+            `;
+        }
+        
+        // Page numbers (simplified for performance)
+        const startPage = Math.max(1, pagination.page - 2);
+        const endPage = Math.min(pagination.pages, pagination.page + 2);
+        
+        if (startPage > 1) {
+            paginationHtml += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
+            if (startPage > 2) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === pagination.page) {
+                paginationHtml += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+            } else {
+                paginationHtml += `<li class="page-item"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+            }
+        }
+        
+        if (endPage < pagination.pages) {
+            if (endPage < pagination.pages - 1) {
+                paginationHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+            paginationHtml += `<li class="page-item"><a class="page-link" href="#" data-page="${pagination.pages}">${pagination.pages}</a></li>`;
+        }
+        
+        // Next button
+        if (pagination.has_next) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" data-page="${pagination.page + 1}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            `;
+        }
+        
+        paginationHtml += '</ul>';
+        container.innerHTML = paginationHtml;
+    }
+    
+    updateStats(pagination) {
+        const statsElement = document.getElementById('channel-stats');
+        if (this.currentSearch) {
+            statsElement.textContent = `Search results for "${this.currentSearch}" (${pagination.total} channels)`;
+        } else {
+            statsElement.textContent = `All Channels (${pagination.total} total)`;
+        }
+    }
+    
+    showLoading(show) {
+        document.getElementById('loading-spinner').style.display = show ? 'block' : 'none';
+        document.getElementById('channels-container').style.opacity = show ? '0.5' : '1';
+    }
+    
+    showError(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="bi bi-exclamation-triangle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container');
+        container.insertBefore(alertDiv, container.firstElementChild);
+    }
+    
+    async checkChannelStatuses() {
+        // Batch check visible channels only
+        const visibleChannels = Array.from(document.querySelectorAll('.channel-status[data-channel-id]'));
+        
+        for (const badge of visibleChannels) {
+            const channelId = badge.dataset.channelId;
+            try {
+                const response = await fetch(`/api/channel/${channelId}/status`);
+                const data = await response.json();
+                this.updateChannelStatus(channelId, data.status);
+            } catch (error) {
+                this.updateChannelStatus(channelId, 'OFFLINE');
+            }
+        }
+    }
+    
+    updateChannelStatus(channelId, status) {
+        const badge = document.querySelector(`[data-channel-id="${channelId}"]`);
+        if (badge) {
+            if (status === 'ONLINE') {
+                badge.className = 'badge bg-success channel-status';
+                badge.innerHTML = '<i class="bi bi-check-circle"></i> ONLINE';
+            } else {
+                badge.className = 'badge bg-danger channel-status';
+                badge.innerHTML = '<i class="bi bi-x-circle"></i> OFFLINE';
+            }
+        }
+    }
+    
+    initLazyLoading() {
+        // Simple lazy loading for images
+        const images = document.querySelectorAll('img[loading="lazy"]');
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.style.opacity = '1';
+                        imageObserver.unobserve(img);
+                    }
+                });
+            });
+            
+            images.forEach(img => imageObserver.observe(img));
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 }
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new ChannelBrowser();
+});
 </script>
 {% endblock %}

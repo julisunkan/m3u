@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Admin Dashboard - M3U Player{% endblock %}
@@ -34,18 +35,34 @@
                         <tr>
                             <th>Name</th>
                             <th>Channels</th>
+                            <th>Last Refresh</th>
                             <th>Created</th>
                             <th class="table-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for playlist in playlists %}
+                        {% for playlist, channel_count in playlists %}
                         <tr>
                             <td>
                                 <strong>{{ playlist.name }}</strong>
+                                {% if playlist.url %}
+                                <br><small class="text-muted">
+                                    <i class="bi bi-link-45deg"></i> Cached from URL
+                                </small>
+                                {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-primary">{{ playlist.channels|length }} channels</span>
+                                <span class="badge bg-primary">{{ channel_count }} channels</span>
+                            </td>
+                            <td>
+                                {% if playlist.last_refresh %}
+                                <small class="text-muted">{{ playlist.last_refresh.strftime('%Y-%m-%d %H:%M') }}</small>
+                                {% if playlist.needs_refresh() %}
+                                <br><span class="badge bg-warning">Needs Refresh</span>
+                                {% endif %}
+                                {% else %}
+                                <small class="text-muted">Never</small>
+                                {% endif %}
                             </td>
                             <td>
                                 <small class="text-muted">{{ playlist.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
@@ -56,6 +73,15 @@
                                        class="btn btn-outline-primary btn-sm-icon" title="View Channels">
                                         <i class="bi bi-eye"></i>
                                     </a>
+                                    {% if playlist.url %}
+                                    <form method="POST" action="{{ url_for('admin_refresh_playlist', playlist_id=playlist.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Refresh playlist from original URL?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-outline-success btn-sm-icon" title="Refresh Playlist">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                     <button type="button" class="btn btn-outline-danger btn-sm-icon" 
                                             onclick="confirmDelete('{{ playlist.name }}', '{{ url_for('admin_delete_playlist', playlist_id=playlist.id) }}')"
                                             title="Delete Playlist">
@@ -70,6 +96,34 @@
             </div>
         </div>
     </div>
+    
+    <!-- Performance Tips -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Performance Tips</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Playlist Management</h6>
+                    <ul class="small">
+                        <li>Playlists are cached locally for faster loading</li>
+                        <li>Use the refresh button to update from original URL</li>
+                        <li>Channels are paginated to reduce memory usage</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Server Resources</h6>
+                    <ul class="small">
+                        <li>Channel browsing uses AJAX pagination</li>
+                        <li>Status checks are optimized for performance</li>
+                        <li>Static files are cached by the browser</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     {% else %}
     <div class="text-center py-5">
         <i class="bi bi-collection-play display-1 text-muted"></i>
@@ -97,6 +151,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="delete-form" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-trash"></i> Delete Playlist
                     </button>
