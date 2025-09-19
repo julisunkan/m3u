@@ -10,18 +10,7 @@
             <i class="bi bi-arrow-left"></i> Back to Dashboard
         </a>
     </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
+    
     <div class="row">
         <div class="col-lg-8">
             <div class="card">
@@ -30,18 +19,16 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                         <div class="mb-3">
                             <label for="playlist_name" class="form-label">Playlist Name *</label>
                             <input type="text" class="form-control" id="playlist_name" name="playlist_name" 
                                    placeholder="Enter a name for this playlist" required>
                             <div class="form-text">This name will be used to identify the playlist.</div>
                         </div>
-
+                        
                         <div class="mb-4">
                             <h6>Choose Import Method:</h6>
-
+                            
                             <!-- URL Import -->
                             <div class="card mb-3">
                                 <div class="card-header">
@@ -58,7 +45,7 @@
                                     </div>
                                 </div>
                             </div>
-
+                            
                             <!-- File Upload -->
                             <div class="card">
                                 <div class="card-header">
@@ -76,7 +63,7 @@
                                 </div>
                             </div>
                         </div>
-
+                        
                         <div class="d-grid">
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="bi bi-download"></i> Import Playlist
@@ -86,7 +73,7 @@
                 </div>
             </div>
         </div>
-
+        
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header">
@@ -101,9 +88,9 @@
                         <li><i class="bi bi-check-circle text-success"></i> Direct video files (MP4, TS)</li>
                         <li><i class="bi bi-check-circle text-success"></i> Audio streams (AAC)</li>
                     </ul>
-
+                    
                     <hr>
-
+                    
                     <h6>Import Process</h6>
                     <ol class="small">
                         <li>Playlist is downloaded/read</li>
@@ -112,9 +99,9 @@
                         <li>Default stream quality is set to "SD"</li>
                         <li>Additional resolutions can be added later</li>
                     </ol>
-
+                    
                     <hr>
-
+                    
                     <h6>Note</h6>
                     <p class="small text-muted">
                         After import, you can manage individual channels and add multiple resolution URLs 

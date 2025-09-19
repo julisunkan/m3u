@@ -1,143 +1,59 @@
-
 {% extends "base.html" %}
 
 {% block title %}{{ channel.name }} - M3U Player{% endblock %}
 
-{% block head %}
-<style>
-    .player-container {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        background: #000;
-        border-bottom: 1px solid #dee2e6;
-    }
-    .video-wrapper {
-        position: relative;
-        width: 100%;
-        height: 0;
-        padding-bottom: 56.25%; /* 16:9 aspect ratio */
-        background: #000;
-    }
-    .video-wrapper video {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-    .player-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        color: white;
-        cursor: pointer;
-        transition: opacity 0.3s ease;
-    }
-    .player-overlay.hidden {
-        opacity: 0;
-        pointer-events: none;
-    }
-    .play-button {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.9;
-    }
-    .player-controls {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 1001;
-    }
-    .resolution-selector {
-        background: rgba(0,0,0,0.8);
-        color: white;
-        border: none;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-    }
-    .channel-info {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid p-0">
-    <!-- Player Container -->
-    <div class="player-container">
+<div class="container-fluid">
+    <!-- Video Player Section (Sticky) -->
+    <div class="video-player-section">
         <div class="container py-3">
-            <!-- Channel Info -->
-            <div class="channel-info rounded mb-3">
-                <div class="d-flex align-items-center">
-                    {% if channel.logo_url %}
-                    <img src="{{ channel.logo_url }}" alt="{{ channel.name }}" 
-                         class="me-3" style="width: 60px; height: 40px; object-fit: cover; border-radius: 4px;" loading="lazy">
-                    {% endif %}
-                    <div>
-                        <h4 class="mb-1" id="channel-name">{{ channel.name }}</h4>
+            <div class="row">
+                <div class="col-12">
+                    <!-- Now Playing Info -->
+                    <div class="now-playing">
+                        <h4 class="mb-1">
+                            <i class="bi bi-play-circle-fill"></i> Now Playing
+                        </h4>
+                        <h5 class="mb-1" id="channel-name">{{ channel.name }}</h5>
                         <p class="mb-0">
                             <i class="bi bi-collection-play"></i> {{ channel.playlist.name }}
-                            {% if channel.group_title %}
-                            <span class="ms-2"><i class="bi bi-tag"></i> {{ channel.group_title }}</span>
-                            {% endif %}
                             <span class="ms-2" id="resolution-info">
-                                <i class="bi bi-camera-video"></i> <span id="current-resolution">Click to play</span>
+                                <i class="bi bi-camera-video"></i> <span id="current-resolution">Loading...</span>
                             </span>
                             <span class="ms-2" id="stream-status">
                                 <span class="badge bg-secondary">
-                                    <i class="bi bi-hourglass-split"></i> Ready
+                                    <i class="bi bi-hourglass-split"></i> Checking...
                                 </span>
                             </span>
                         </p>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Video Player -->
-            <div class="video-wrapper">
-                <video id="video-player" class="w-100 h-100" controls crossorigin="anonymous" preload="none">
-                    <p>Your browser does not support HTML5 video.</p>
-                </video>
-                
-                <!-- Player Overlay (Click to Play) -->
-                <div class="player-overlay" id="player-overlay">
-                    <div class="play-button">
-                        <i class="bi bi-play-circle"></i>
+                    
+                    <!-- Video Container -->
+                    <div class="video-container">
+                        <video id="video-player" class="w-100 h-100" controls crossorigin="anonymous">
+                            <p>Your browser does not support HTML5 video.</p>
+                        </video>
+                        
+                        <!-- Resolution Selector -->
+                        <select id="resolution-selector" class="resolution-selector">
+                            <option value="">Loading streams...</option>
+                        </select>
                     </div>
-                    <h5>Click to Start Playing</h5>
-                    <p class="text-center">Video will load when you click play</p>
-                </div>
-                
-                <!-- Player Controls -->
-                <div class="player-controls">
-                    <select id="resolution-selector" class="resolution-selector">
-                        <option value="">Loading streams...</option>
-                    </select>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Channel Details -->
+    <!-- Back to Channel List -->
     <div class="container py-4">
         <div class="row">
             <div class="col-12">
-                <a href="{{ url_for('index') }}" class="btn btn-outline-primary mb-4">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
                     <i class="bi bi-arrow-left"></i> Back to Channel List
                 </a>
                 
                 <!-- Stream Information -->
-                <div class="card">
+                <div class="card mt-4">
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class="bi bi-info-circle"></i> Stream Information
@@ -148,14 +64,10 @@
                             <div class="col-md-6">
                                 <p><strong>Channel:</strong> {{ channel.name }}</p>
                                 <p><strong>Playlist:</strong> {{ channel.playlist.name }}</p>
-                                {% if channel.group_title %}
-                                <p><strong>Category:</strong> {{ channel.group_title }}</p>
-                                {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Available Streams:</strong> {{ channel.streams.count() }}</p>
-                                <p><strong>Stream Type:</strong> <span id="stream-type">Not loaded</span></p>
-                                <p><strong>Status:</strong> <span id="connection-status">Ready to play</span></p>
+                                <p><strong>Available Streams:</strong> {{ channel.streams|length }}</p>
+                                <p><strong>Stream Type:</strong> <span id="stream-type">Detecting...</span></p>
                             </div>
                         </div>
                         
@@ -167,16 +79,7 @@
                                 <div class="col-md-4 mb-2">
                                     <div class="card border-secondary">
                                         <div class="card-body p-2">
-                                            <small class="text-muted">
-                                                {{ stream.resolution_label }}
-                                                {% if stream.is_hls %}
-                                                <span class="badge bg-success ms-1">HLS</span>
-                                                {% elif stream.needs_proxy %}
-                                                <span class="badge bg-warning ms-1">Proxy</span>
-                                                {% else %}
-                                                <span class="badge bg-info ms-1">Direct</span>
-                                                {% endif %}
-                                            </small>
+                                            <small class="text-muted">{{ stream.resolution_label }}</small>
                                         </div>
                                     </div>
                                 </div>
@@ -193,25 +96,25 @@
 
 {% block scripts %}
 <script>
-class OptimizedVideoPlayer {
+class VideoPlayer {
     constructor(channelId) {
         this.channelId = channelId;
         this.video = document.getElementById('video-player');
-        this.overlay = document.getElementById('player-overlay');
         this.resolutionSelector = document.getElementById('resolution-selector');
         this.currentResolutionSpan = document.getElementById('current-resolution');
         this.streamTypeSpan = document.getElementById('stream-type');
-        this.connectionStatusSpan = document.getElementById('connection-status');
         this.hls = null;
         this.streams = [];
         this.currentStream = null;
-        this.isInitialized = false;
         
         this.init();
     }
     
     async init() {
         try {
+            // Check channel status first
+            await this.checkChannelStatus();
+            
             // Fetch stream data
             const response = await fetch(`/api/channel/${this.channelId}/streams`);
             if (!response.ok) {
@@ -222,6 +125,7 @@ class OptimizedVideoPlayer {
             this.streams = data.streams;
             
             if (this.streams.length === 0) {
+                this.updateStreamStatus('OFFLINE', 'No streams available');
                 this.showError('No streams available for this channel');
                 return;
             }
@@ -229,15 +133,39 @@ class OptimizedVideoPlayer {
             // Populate resolution selector
             this.populateResolutionSelector();
             
+            // Load default stream (first one)
+            this.loadStream(this.streams[0]);
+            
             // Setup event listeners
             this.setupEventListeners();
             
-            // Update status
-            this.updateConnectionStatus('Ready - Click to play');
-            
         } catch (error) {
             console.error('Error initializing player:', error);
+            this.updateStreamStatus('OFFLINE', 'Failed to load stream data');
             this.showError('Failed to load stream data: ' + error.message);
+        }
+    }
+    
+    async checkChannelStatus() {
+        try {
+            const response = await fetch(`/api/channel/${this.channelId}/status`);
+            const data = await response.json();
+            this.updateStreamStatus(data.status, data.reason);
+        } catch (error) {
+            console.error('Error checking channel status:', error);
+            this.updateStreamStatus('OFFLINE', 'Status check failed');
+        }
+    }
+    
+    updateStreamStatus(status, reason = '') {
+        const statusElement = document.getElementById('stream-status');
+        if (statusElement) {
+            if (status === 'ONLINE') {
+                statusElement.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> ONLINE</span>';
+            } else {
+                const reasonText = reason ? ` (${reason})` : '';
+                statusElement.innerHTML = `<span class="badge bg-danger"><i class="bi bi-x-circle"></i> OFFLINE${reasonText}</span>`;
+            }
         }
     }
     
@@ -255,95 +183,24 @@ class OptimizedVideoPlayer {
     }
     
     setupEventListeners() {
-        // Play button click
-        this.overlay.addEventListener('click', () => {
-            this.startPlayback();
-        });
-        
-        // Resolution selector
         this.resolutionSelector.addEventListener('change', (e) => {
-            if (this.isInitialized) {
-                const streamIndex = parseInt(e.target.value);
-                if (streamIndex >= 0 && streamIndex < this.streams.length) {
-                    this.loadStream(this.streams[streamIndex]);
-                }
+            const streamIndex = parseInt(e.target.value);
+            if (streamIndex >= 0 && streamIndex < this.streams.length) {
+                this.loadStream(this.streams[streamIndex]);
             }
         });
         
-        // Video events
+        // Video error handling
         this.video.addEventListener('error', (e) => {
             console.error('Video error:', e);
-            this.updateConnectionStatus('Playback error');
+            this.updateStreamStatus('OFFLINE', 'Playback error');
             this.showError('Video playback error - stream may be offline');
         });
         
-        this.video.addEventListener('loadstart', () => {
-            this.updateConnectionStatus('Loading...');
+        // Video loaded metadata
+        this.video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded');
         });
-        
-        this.video.addEventListener('canplay', () => {
-            this.updateConnectionStatus('Ready to play');
-        });
-        
-        this.video.addEventListener('playing', () => {
-            this.updateConnectionStatus('Playing');
-            this.overlay.classList.add('hidden');
-        });
-        
-        this.video.addEventListener('waiting', () => {
-            this.updateConnectionStatus('Buffering...');
-        });
-        
-        this.video.addEventListener('pause', () => {
-            this.updateConnectionStatus('Paused');
-        });
-    }
-    
-    async startPlayback() {
-        if (this.isInitialized) {
-            this.video.play();
-            return;
-        }
-        
-        this.isInitialized = true;
-        this.updateConnectionStatus('Initializing...');
-        
-        // Check channel status first
-        try {
-            await this.checkChannelStatus();
-        } catch (error) {
-            console.warn('Status check failed, continuing anyway');
-        }
-        
-        // Load default stream
-        this.loadStream(this.streams[0]);
-    }
-    
-    async checkChannelStatus() {
-        try {
-            const response = await fetch(`/api/channel/${this.channelId}/status`);
-            const data = await response.json();
-            this.updateStreamStatus(data.status, data.reason);
-        } catch (error) {
-            console.error('Error checking channel status:', error);
-            this.updateStreamStatus('UNKNOWN', 'Status check failed');
-        }
-    }
-    
-    updateStreamStatus(status, reason = '') {
-        const statusElement = document.getElementById('stream-status');
-        if (statusElement) {
-            if (status === 'ONLINE') {
-                statusElement.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> ONLINE</span>';
-            } else {
-                const reasonText = reason ? ` (${reason})` : '';
-                statusElement.innerHTML = `<span class="badge bg-danger"><i class="bi bi-x-circle"></i> ${status}${reasonText}</span>`;
-            }
-        }
-    }
-    
-    updateConnectionStatus(status) {
-        this.connectionStatusSpan.textContent = status;
     }
     
     loadStream(stream) {
@@ -357,10 +214,15 @@ class OptimizedVideoPlayer {
         }
         
         // Determine stream type and load accordingly
-        if (stream.is_hls || stream.url.toLowerCase().includes('.m3u8')) {
+        const streamUrl = stream.url.toLowerCase();
+        
+        if (streamUrl.includes('.m3u8')) {
             this.loadHLSStream(stream);
-        } else {
+        } else if (streamUrl.includes('.mp4') || streamUrl.includes('.ts') || streamUrl.includes('.aac')) {
             this.loadDirectStream(stream);
+        } else {
+            // Try HLS first, fallback to direct
+            this.loadHLSStream(stream);
         }
     }
     
@@ -372,9 +234,7 @@ class OptimizedVideoPlayer {
                 debug: false,
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 90,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60
+                backBufferLength: 90
             });
             
             this.hls.loadSource(stream.url);
@@ -382,28 +242,28 @@ class OptimizedVideoPlayer {
             
             this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 console.log('HLS manifest loaded, found', this.hls.levels.length, 'quality levels');
-                this.updateConnectionStatus('Ready');
                 this.video.play().catch(e => {
                     console.log('Autoplay prevented:', e);
-                    this.updateConnectionStatus('Click play to start');
                 });
             });
             
             this.hls.on(Hls.Events.ERROR, (event, data) => {
                 console.error('HLS error:', data);
                 if (data.fatal) {
-                    this.updateConnectionStatus('Stream error');
+                    this.updateStreamStatus('OFFLINE', 'Stream error');
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            this.updateConnectionStatus('Network error - retrying...');
+                            console.log('Fatal network error, trying to recover...');
+                            this.showError('Network error - stream may be offline');
                             this.hls.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            this.updateConnectionStatus('Media error - recovering...');
+                            console.log('Fatal media error, trying to recover...');
+                            this.showError('Media error - trying to recover...');
                             this.hls.recoverMediaError();
                             break;
                         default:
-                            this.updateConnectionStatus('Fatal error');
+                            console.log('Fatal error, cannot recover');
                             this.showError('Stream playback failed - channel may be offline');
                             break;
                     }
@@ -424,19 +284,21 @@ class OptimizedVideoPlayer {
     }
     
     loadDirectStream(stream) {
-        // Determine stream type for display
+        // Determine stream type
         const streamUrl = stream.url.toLowerCase();
         if (streamUrl.includes('.mp4')) {
             this.streamTypeSpan.textContent = 'Direct (MP4)';
         } else if (streamUrl.includes('.ts')) {
             this.streamTypeSpan.textContent = 'Direct (TS)';
+        } else if (streamUrl.includes('.aac')) {
+            this.streamTypeSpan.textContent = 'Direct (AAC)';
         } else {
             this.streamTypeSpan.textContent = 'Direct Stream';
         }
         
-        // Use proxy if needed, otherwise direct URL
-        const playUrl = stream.needs_proxy ? `/proxy/${stream.id}` : stream.url;
-        this.video.src = playUrl;
+        // Use proxy endpoint for direct streams to avoid CORS issues
+        const proxyUrl = `/proxy/${stream.id}`;
+        this.video.src = proxyUrl;
         
         this.video.addEventListener('loadedmetadata', () => {
             this.video.play().catch(e => {
@@ -446,37 +308,17 @@ class OptimizedVideoPlayer {
     }
     
     showError(message) {
-        // Update connection status
-        this.updateConnectionStatus('Error');
-        
-        // Show error in overlay
-        this.overlay.innerHTML = `
-            <div class="text-center">
-                <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>
-                <h5 class="mt-3">Playback Error</h5>
-                <p>${message}</p>
-                <button class="btn btn-light" onclick="location.reload()">
-                    <i class="bi bi-arrow-clockwise"></i> Retry
-                </button>
-            </div>
-        `;
-        this.overlay.classList.remove('hidden');
-        
-        // Also show alert
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-        alertDiv.innerHTML = `
-            <i class="bi bi-exclamation-triangle"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger mt-3';
+        errorDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${message}`;
         
         const container = document.querySelector('.container');
-        container.insertBefore(alertDiv, container.firstElementChild);
+        container.insertBefore(errorDiv, container.firstChild);
         
         // Remove error after 5 seconds
         setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.parentNode.removeChild(alertDiv);
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
             }
         }, 5000);
     }
@@ -485,7 +327,7 @@ class OptimizedVideoPlayer {
 // Initialize player when page loads
 document.addEventListener('DOMContentLoaded', () => {
     const channelId = {{ channel.id }};
-    new OptimizedVideoPlayer(channelId);
+    new VideoPlayer(channelId);
 });
 </script>
 {% endblock %}

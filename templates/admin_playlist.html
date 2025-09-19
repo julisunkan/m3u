@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}{{ playlist.name }} - Admin - M3U Player{% endblock %}
@@ -10,39 +9,18 @@
             <h1><i class="bi bi-collection-play"></i> {{ playlist.name }}</h1>
             <p class="text-muted mb-0">
                 Created on {{ playlist.created_at.strftime('%Y-%m-%d at %H:%M') }}
-                {% if playlist.last_refresh %}
-                | Last refresh: {{ playlist.last_refresh.strftime('%Y-%m-%d at %H:%M') }}
-                {% endif %}
-                <span class="ms-2 badge bg-primary">{{ playlist.channel_count }} channels</span>
-                {% if playlist.url %}
-                <span class="ms-1 badge bg-success">Cached</span>
-                {% endif %}
+                <span class="ms-2 badge bg-primary">{{ playlist.channels|length }} channels</span>
             </p>
         </div>
-        <div>
-            {% if playlist.url %}
-            <form method="POST" action="{{ url_for('admin_refresh_playlist', playlist_id=playlist.id) }}" 
-                  class="d-inline me-2" onsubmit="return confirm('Refresh playlist from original URL? This will replace all current channels.')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                </button>
-            </form>
-            {% endif %}
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-        </div>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
     
-    {% if channels.items %}
+    {% if playlist.channels %}
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h5 class="mb-0"><i class="bi bi-camera-video"></i> Channels in this Playlist</h5>
-            <small class="text-muted">
-                Showing {{ channels.per_page * (channels.page - 1) + 1 }}-{{ channels.per_page * (channels.page - 1) + channels.items|length }} 
-                of {{ channels.total }} channels
-            </small>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -50,38 +28,21 @@
                     <thead class="table-light">
                         <tr>
                             <th>Channel Name</th>
-                            <th>Group</th>
                             <th>Streams</th>
                             <th class="table-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for channel in channels.items %}
+                        {% for channel in playlist.channels %}
                         <tr>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    {% if channel.logo_url %}
-                                    <img src="{{ channel.logo_url }}" alt="{{ channel.name }}" 
-                                         class="me-2" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px;" loading="lazy">
-                                    {% endif %}
-                                    <strong>{{ channel.name }}</strong>
-                                </div>
+                                <strong>{{ channel.name }}</strong>
                             </td>
                             <td>
-                                {% if channel.group_title %}
-                                <span class="badge bg-light text-dark">{{ channel.group_title }}</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ channel.stream_count }} stream{{ 's' if channel.stream_count != 1 else '' }}</span>
-                                {% for stream in channel.streams.limit(3) %}
+                                <span class="badge bg-info">{{ channel.streams|length }} stream{{ 's' if channel.streams|length != 1 else '' }}</span>
+                                {% for stream in channel.streams %}
                                 <span class="badge bg-secondary ms-1">{{ stream.resolution_label }}</span>
                                 {% endfor %}
-                                {% if channel.stream_count > 3 %}
-                                <span class="badge bg-light text-dark ms-1">+{{ channel.stream_count - 3 }} more</span>
-                                {% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
@@ -102,50 +63,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Pagination -->
-    {% if channels.pages > 1 %}
-    <nav aria-label="Channel pagination" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if channels.has_prev %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('admin_view_playlist', playlist_id=playlist.id, page=channels.prev_num) }}">
-                    <i class="bi bi-chevron-left"></i> Previous
-                </a>
-            </li>
-            {% endif %}
-            
-            {% for page_num in channels.iter_pages() %}
-                {% if page_num %}
-                    {% if page_num != channels.page %}
-                    <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin_view_playlist', playlist_id=playlist.id, page=page_num) }}">
-                            {{ page_num }}
-                        </a>
-                    </li>
-                    {% else %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ page_num }}</span>
-                    </li>
-                    {% endif %}
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">…</span>
-                </li>
-                {% endif %}
-            {% endfor %}
-            
-            {% if channels.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('admin_view_playlist', playlist_id=playlist.id, page=channels.next_num) }}">
-                    Next <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-    
     {% else %}
     <div class="text-center py-5">
         <i class="bi bi-camera-video-off display-1 text-muted"></i>

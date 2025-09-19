@@ -3,35 +3,40 @@
 {% block title %}Admin Login - M3U Player{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow-lg">
-            <div class="card-body p-4">
-                <h2 class="text-center text-white mb-4">
-                    <i class="bi bi-shield-lock"></i> Admin Login
-                </h2>
-
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <div class="mb-3">
-                        <label for="username" class="form-label text-white">
-                            <i class="bi bi-person"></i> Username
-                        </label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-lock display-4 text-primary"></i>
+                        <h3 class="mt-2">Admin Login</h3>
+                        <p class="text-muted">Access administrative panel</p>
                     </div>
-
-                    <div class="mb-4">
-                        <label for="password" class="form-label text-white">
-                            <i class="bi bi-lock"></i> Password
-                        </label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-box-arrow-in-right"></i> Login
+                        </button>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('index') }}" class="text-muted">
+                            <i class="bi bi-arrow-left"></i> Back to Channel List
+                        </a>
                     </div>
-
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-box-arrow-in-right"></i> Login
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     </div>

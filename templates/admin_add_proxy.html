@@ -1,114 +1,174 @@
 {% extends "base.html" %}
 
-{% block title %}Add Proxy Server - M3U Player{% endblock %}
+{% block title %}Add Proxy Server - M3U Player Admin{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8 mx-auto">
-        <div class="card shadow-lg">
-            <div class="card-header bg-primary text-white">
-                <h3 class="mb-0">
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
                     <i class="bi bi-plus-circle"></i> Add Proxy Server
-                </h3>
+                </h1>
+                <a href="{{ url_for('admin_proxies') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Proxy List
+                </a>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear"></i> Proxy Server Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">
+                                        <i class="bi bi-tag"></i> Name <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           placeholder="e.g., US Proxy Server" required>
+                                    <div class="form-text">Friendly name to identify this proxy server</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="proxy_type" class="form-label">
+                                        <i class="bi bi-layers"></i> Proxy Type <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="proxy_type" name="proxy_type" required>
+                                        <option value="">Select proxy type...</option>
+                                        <option value="http">HTTP</option>
+                                        <option value="https">HTTPS</option>
+                                        <option value="socks5">SOCKS5</option>
+                                    </select>
+                                    <div class="form-text">Protocol used by the proxy server</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="host" class="form-label">
+                                        <i class="bi bi-hdd-network"></i> Host/IP Address <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control" id="host" name="host" 
+                                           placeholder="e.g., proxy.example.com or 192.168.1.100" required>
+                                    <div class="form-text">Hostname or IP address of the proxy server</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="port" class="form-label">
+                                        <i class="bi bi-ethernet"></i> Port <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="number" class="form-control" id="port" name="port" 
+                                           placeholder="e.g., 8080" min="1" max="65535" required>
+                                    <div class="form-text">Port number (1-65535)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">
+                                        <i class="bi bi-person"></i> Username
+                                    </label>
+                                    <input type="text" class="form-control" id="username" name="username" 
+                                           placeholder="Leave empty if no authentication">
+                                    <div class="form-text">Username for proxy authentication (optional)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">
+                                        <i class="bi bi-lock"></i> Password
+                                    </label>
+                                    <input type="password" class="form-control" id="password" name="password" 
+                                           placeholder="Leave empty if no authentication">
+                                    <div class="form-text">Password for proxy authentication (optional)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="country_code" class="form-label">
+                                        <i class="bi bi-flag"></i> Country Code
+                                    </label>
+                                    <input type="text" class="form-control" id="country_code" name="country_code" 
+                                           placeholder="e.g., US, UK, CA" maxlength="2" 
+                                           style="text-transform: uppercase;">
+                                    <div class="form-text">2-letter country code where proxy is located (optional)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Security Note:</strong> Only use trusted proxy servers. Free public proxies may log your traffic or inject malicious content.
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('admin_proxies') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Add Proxy Server
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightbulb"></i> Common Proxy Providers
+                    </h6>
+                </div>
+                <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">
-                                    <i class="bi bi-tag"></i> Name
-                                </label>
-                                <input type="text" class="form-control" id="name" name="name" required
-                                       placeholder="e.g., US Proxy 1">
-                            </div>
+                            <h6>Free Proxy Lists</h6>
+                            <ul class="small">
+                                <li>Free-proxy-list.net</li>
+                                <li>Proxy-list.download</li>
+                                <li>Spys.one</li>
+                            </ul>
+                            <p class="small text-warning">
+                                <i class="bi bi-exclamation-triangle"></i> Free proxies may be unreliable or insecure
+                            </p>
                         </div>
                         <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="proxy_type" class="form-label">
-                                    <i class="bi bi-gear"></i> Type
-                                </label>
-                                <select class="form-select" id="proxy_type" name="proxy_type" required>
-                                    <option value="">Select proxy type...</option>
-                                    <option value="http">HTTP</option>
-                                    <option value="https">HTTPS</option>
-                                    <option value="socks4">SOCKS4</option>
-                                    <option value="socks5">SOCKS5</option>
-                                </select>
-                            </div>
+                            <h6>Paid Proxy Services</h6>
+                            <ul class="small">
+                                <li>Bright Data (formerly Luminati)</li>
+                                <li>SmartProxy</li>
+                                <li>ProxyMesh</li>
+                                <li>Storm Proxies</li>
+                            </ul>
+                            <p class="small text-success">
+                                <i class="bi bi-check-circle"></i> Paid services typically offer better reliability
+                            </p>
                         </div>
                     </div>
-
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="host" class="form-label">
-                                    <i class="bi bi-globe"></i> Host
-                                </label>
-                                <input type="text" class="form-control" id="host" name="host" required
-                                       placeholder="proxy.example.com">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="port" class="form-label">
-                                    <i class="bi bi-ethernet"></i> Port
-                                </label>
-                                <input type="number" class="form-control" id="port" name="port" required
-                                       placeholder="8080" min="1" max="65535">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">
-                                    <i class="bi bi-person"></i> Username
-                                </label>
-                                <input type="text" class="form-control" id="username" name="username" 
-                                       placeholder="Leave empty if no authentication">
-                                <div class="form-text">Username for proxy authentication (optional)</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="password" class="form-label">
-                                    <i class="bi bi-lock"></i> Password
-                                </label>
-                                <input type="password" class="form-control" id="password" name="password" 
-                                       placeholder="Leave empty if no authentication">
-                                <div class="form-text">Password for proxy authentication (optional)</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="country_code" class="form-label">
-                                    <i class="bi bi-flag"></i> Country Code
-                                </label>
-                                <input type="text" class="form-control" id="country_code" name="country_code" 
-                                       placeholder="US" maxlength="2">
-                                <div class="form-text">2-letter country code (optional)</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-plus-circle"></i> Add Proxy Server
-                        </button>
-                        <a href="{{ url_for('admin_proxies') }}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back to Proxies
-                        </a>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Auto-uppercase country code input
+document.getElementById('country_code').addEventListener('input', function(e) {
+    e.target.value = e.target.value.toUpperCase();
+});
+</script>
 {% endblock %}

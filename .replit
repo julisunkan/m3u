@@ -57,15 +57,6 @@ mode = "sequential"
 task = "shell.exec"
 args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --workers 2 --timeout 60 --keep-alive 2 main:app"
 
-[[workflows.workflow]]
-name = "M3U Player (Dev)"
-author = 47777814
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --workers 1 --timeout 60 main:app"
-
 [[ports]]
 localPort = 5000
 externalPort = 80
