@@ -20,6 +20,11 @@
                             <span class="ms-2" id="resolution-info">
                                 <i class="bi bi-camera-video"></i> <span id="current-resolution">Loading...</span>
                             </span>
+                            <span class="ms-2" id="stream-status">
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-hourglass-split"></i> Checking...
+                                </span>
+                            </span>
                         </p>
                     </div>
                     
@@ -107,12 +112,20 @@ class VideoPlayer {
     
     async init() {
         try {
+            // Check channel status first
+            await this.checkChannelStatus();
+            
             // Fetch stream data
             const response = await fetch(`/api/channel/${this.channelId}/streams`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
             this.streams = data.streams;
             
             if (this.streams.length === 0) {
+                this.updateStreamStatus('OFFLINE', 'No streams available');
                 this.showError('No streams available for this channel');
                 return;
             }
@@ -128,7 +141,31 @@ class VideoPlayer {
             
         } catch (error) {
             console.error('Error initializing player:', error);
-            this.showError('Failed to load stream data');
+            this.updateStreamStatus('OFFLINE', 'Failed to load stream data');
+            this.showError('Failed to load stream data: ' + error.message);
+        }
+    }
+    
+    async checkChannelStatus() {
+        try {
+            const response = await fetch(`/api/channel/${this.channelId}/status`);
+            const data = await response.json();
+            this.updateStreamStatus(data.status, data.reason);
+        } catch (error) {
+            console.error('Error checking channel status:', error);
+            this.updateStreamStatus('OFFLINE', 'Status check failed');
+        }
+    }
+    
+    updateStreamStatus(status, reason = '') {
+        const statusElement = document.getElementById('stream-status');
+        if (statusElement) {
+            if (status === 'ONLINE') {
+                statusElement.innerHTML = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> ONLINE</span>';
+            } else {
+                const reasonText = reason ? ` (${reason})` : '';
+                statusElement.innerHTML = `<span class="badge bg-danger"><i class="bi bi-x-circle"></i> OFFLINE${reasonText}</span>`;
+            }
         }
     }
     
@@ -156,7 +193,8 @@ class VideoPlayer {
         // Video error handling
         this.video.addEventListener('error', (e) => {
             console.error('Video error:', e);
-            this.showError('Video playback error');
+            this.updateStreamStatus('OFFLINE', 'Playback error');
+            this.showError('Video playback error - stream may be offline');
         });
         
         // Video loaded metadata
@@ -212,18 +250,21 @@ class VideoPlayer {
             this.hls.on(Hls.Events.ERROR, (event, data) => {
                 console.error('HLS error:', data);
                 if (data.fatal) {
+                    this.updateStreamStatus('OFFLINE', 'Stream error');
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
                             console.log('Fatal network error, trying to recover...');
+                            this.showError('Network error - stream may be offline');
                             this.hls.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
                             console.log('Fatal media error, trying to recover...');
+                            this.showError('Media error - trying to recover...');
                             this.hls.recoverMediaError();
                             break;
                         default:
                             console.log('Fatal error, cannot recover');
-                            this.showError('Stream playback failed');
+                            this.showError('Stream playback failed - channel may be offline');
                             break;
                     }
                 }

@@ -165,6 +165,50 @@ def get_channel_streams(channel_id):
         'streams': streams
     })
 
+@app.route('/api/channel/<int:channel_id>/status')
+def check_channel_status(channel_id):
+    """API endpoint to check if a channel's streams are online"""
+    channel = Channel.query.get_or_404(channel_id)
+    
+    if not channel.streams:
+        return jsonify({'status': 'OFFLINE', 'reason': 'No streams available'})
+    
+    # Check the first stream to determine if channel is online
+    stream = channel.streams[0]
+    try:
+        # Make a HEAD request to check if stream is accessible
+        response = requests.head(stream.url, timeout=5, allow_redirects=True)
+        if response.status_code == 200:
+            return jsonify({'status': 'ONLINE'})
+        else:
+            return jsonify({'status': 'OFFLINE', 'reason': f'HTTP {response.status_code}'})
+    except requests.RequestException as e:
+        return jsonify({'status': 'OFFLINE', 'reason': str(e)})
+
+@app.route('/api/channels/status')
+def check_all_channels_status():
+    """API endpoint to check status of all channels"""
+    channels = Channel.query.all()
+    status_data = []
+    
+    for channel in channels:
+        if not channel.streams:
+            status = 'OFFLINE'
+        else:
+            try:
+                # Quick check of first stream
+                response = requests.head(channel.streams[0].url, timeout=3, allow_redirects=True)
+                status = 'ONLINE' if response.status_code == 200 else 'OFFLINE'
+            except:
+                status = 'OFFLINE'
+        
+        status_data.append({
+            'id': channel.id,
+            'status': status
+        })
+    
+    return jsonify({'channels': status_data})
+
 @app.route('/proxy/<int:stream_id>')
 def proxy_stream(stream_id):
     """Proxy endpoint for non-HLS streams"""

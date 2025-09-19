@@ -61,6 +61,11 @@
                                 <i class="bi bi-camera-video"></i> 
                                 {{ channel.streams|length }} stream{{ 's' if channel.streams|length != 1 else '' }}
                             </p>
+                            <p class="card-text small mb-2">
+                                <span class="badge bg-secondary channel-status" data-channel-id="{{ channel.id }}">
+                                    <i class="bi bi-hourglass-split"></i> Checking...
+                                </span>
+                            </p>
                             <div class="mt-auto">
                                 <a href="{{ url_for('play_channel', channel_id=channel.id) }}" 
                                    class="btn btn-primary w-100">
@@ -136,4 +141,44 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Check channel statuses on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkAllChannelStatuses();
+});
+
+async function checkAllChannelStatuses() {
+    try {
+        const response = await fetch('/api/channels/status');
+        const data = await response.json();
+        
+        data.channels.forEach(channel => {
+            updateChannelStatus(channel.id, channel.status);
+        });
+    } catch (error) {
+        console.error('Error checking channel statuses:', error);
+        // Mark all as offline if we can't check
+        document.querySelectorAll('.channel-status').forEach(badge => {
+            badge.className = 'badge bg-danger channel-status';
+            badge.innerHTML = '<i class="bi bi-x-circle"></i> OFFLINE';
+        });
+    }
+}
+
+function updateChannelStatus(channelId, status) {
+    const badge = document.querySelector(`[data-channel-id="${channelId}"]`);
+    if (badge) {
+        if (status === 'ONLINE') {
+            badge.className = 'badge bg-success channel-status';
+            badge.innerHTML = '<i class="bi bi-check-circle"></i> ONLINE';
+        } else {
+            badge.className = 'badge bg-danger channel-status';
+            badge.innerHTML = '<i class="bi bi-x-circle"></i> OFFLINE';
+        }
+    }
+}
+</script>
 {% endblock %}
