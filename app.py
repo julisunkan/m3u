@@ -117,7 +117,9 @@ class AdminSetting(db.Model):
             setting.setting_value = value
             setting.updated_at = datetime.utcnow()
         else:
-            setting = cls(setting_key=key, setting_value=value)
+            setting = cls()
+            setting.setting_key = key
+            setting.setting_value = value
             db.session.add(setting)
         db.session.commit()
         return setting
@@ -453,25 +455,24 @@ def admin_import_playlist():
                 return render_template('admin_import.html')
             
             # Create playlist
-            playlist = Playlist(name=playlist_name)
+            playlist = Playlist()
+            playlist.name = playlist_name
             db.session.add(playlist)
             db.session.flush()  # Get the playlist ID
             
             # Create channels and streams
             for channel_data in channels_data:
-                channel = Channel(
-                    playlist_id=playlist.id,
-                    name=channel_data['name']
-                )
+                channel = Channel()
+                channel.playlist_id = playlist.id
+                channel.name = channel_data['name']
                 db.session.add(channel)
                 db.session.flush()  # Get the channel ID
                 
                 # Create default stream (assume SD quality if not specified)
-                stream = Stream(
-                    channel_id=channel.id,
-                    resolution_label='SD',
-                    url=channel_data['url']
-                )
+                stream = Stream()
+                stream.channel_id = channel.id
+                stream.resolution_label = 'SD'
+                stream.url = channel_data['url']
                 db.session.add(stream)
             
             db.session.commit()
@@ -524,11 +525,10 @@ def admin_add_stream(channel_id):
         flash('Both resolution label and URL are required!', 'error')
         return redirect(url_for('admin_view_channel', channel_id=channel_id))
     
-    stream = Stream(
-        channel_id=channel_id,
-        resolution_label=resolution_label,
-        url=url
-    )
+    stream = Stream()
+    stream.channel_id = channel_id
+    stream.resolution_label = resolution_label
+    stream.url = url
     db.session.add(stream)
     db.session.commit()
     
@@ -572,15 +572,14 @@ def admin_add_proxy():
             flash('Name, type, host, and port are required!', 'error')
             return render_template('admin_add_proxy.html')
         
-        proxy = ProxyServer(
-            name=name,
-            proxy_type=proxy_type,
-            host=host,
-            port=port,
-            username=username if username else None,
-            password=password if password else None,
-            country_code=country_code.upper() if country_code else None
-        )
+        proxy = ProxyServer()
+        proxy.name = name
+        proxy.proxy_type = proxy_type
+        proxy.host = host
+        proxy.port = port
+        proxy.username = username if username else None
+        proxy.password = password if password else None
+        proxy.country_code = country_code.upper() if country_code else None
         db.session.add(proxy)
         db.session.commit()
         
